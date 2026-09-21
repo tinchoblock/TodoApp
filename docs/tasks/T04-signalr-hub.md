@@ -18,9 +18,9 @@ Notify other open instances when one modifies the list.
 4. Do not send to Caller (Others only) to avoid echo; caller already did optimistic update.
 
 ## Acceptance criteria
-- [ ] Hub reachable at `/hubs/todo` (negotiate 200).
-- [ ] Create/edit/delete/reorder emits event to Others only.
-- [ ] Payload camelCase `type` + data.
+- [x] Hub reachable at `/hubs/todo` (negotiate 200).
+- [x] Create/edit/delete/reorder emits event to Others only.
+- [x] Payload camelCase `type` + data.
 
 ## Validate
 Start API, open 2 WS clients (or fully validated in T07 with frontend). Minimum: `Invoke-RestMethod http://localhost:5000/hubs/todo/negotiate?negotiateVersion=1 -Method Post` does not return 404.

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using TodoApi.Data;
+using TodoApi.Hubs;
 using TodoApi.Repositories;
 using TodoApi.Services;
 
@@ -23,8 +24,12 @@ builder.Services.AddCors(options =>
     options.AddPolicy(AllowFrontend, policy =>
         policy.WithOrigins("http://localhost:5173")
             .AllowAnyHeader()
-            .AllowAnyMethod());
+            .AllowAnyMethod()
+            .AllowCredentials());
 });
+
+// T04 SignalR hub (server -> clients broadcast, no client -> server methods in v1).
+builder.Services.AddSignalR();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -48,6 +53,8 @@ if (app.Environment.IsDevelopment())
 app.UseCors(AllowFrontend);
 
 app.MapControllers();
+
+app.MapHub<TodoHub>("/hubs/todo");
 
 app.Run();
 
