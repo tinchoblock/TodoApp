@@ -24,8 +24,12 @@ TodoApp/
     Program.cs
     Models/TodoItem.cs
     Data/TodoDbContext.cs
-    Controllers/TodosController.cs
-    Hubs/TodoHub.cs
+    DTOs/TodoDtos.cs (incl. TodoResponseDto)
+    Adapters/TodoMapper.cs (static, Entity<->DTO)
+    Repositories/ITodoRepository.cs + TodoRepository.cs (EF only)
+    Services/ITodoService.cs + TodoService.cs (business rules)
+    Controllers/TodosController.cs (thin, maps to ResponseDto)
+    Hubs/TodoHub.cs (T04)
   frontend/todo-web/
     src/api/todosApi.ts
     src/hubs/todoHub.ts
@@ -33,7 +37,7 @@ TodoApp/
     src/components/AddTodo.tsx, TodoList.tsx, TodoItem.tsx
     src/App.tsx, main.tsx, styles.css
     vite.config.ts
-  docs/plan.md + tasks/T01..T10 + sessions/session-log.md
+  docs/plan.md + tasks/T01..T10 incl. T03.1 + sessions/session-log.md
 ```
 
 ## Model
@@ -75,5 +79,12 @@ Ordering: `ORDER BY SortOrder ASC, Id ASC`. On create: `SortOrder = MAX+1` (or 0
 - No filters, no counters, no delete confirmation.
 
 ## Implementation order
-T01 env -> T02 backend scaffold -> T03 CRUD API -> T04 SignalR -> T05 frontend scaffold -> T06 CRUD UI -> T07 realtime sync -> T08 drag reorder -> T09 e2e validation -> T10 readme/gitignore.
-Each task is independent and individually validatable. See `tasks/Txx-*.md`.
+T01 env -> T02 backend scaffold -> T03 CRUD API -> T03.1 service/repository/adapters refactor (no behavior change) -> T04 SignalR -> T05 frontend scaffold -> T06 CRUD UI -> T07 realtime sync -> T08 drag reorder -> T09 e2e validation -> T10 readme/gitignore.
+Each task is independent and individually validatable. See `tasks/Txx-*.md` (incl. `T03.1-service-repository-adapters.md`).
+
+## Backend layering (T03.1)
+- `Repositories/`: EF Core only (`ITodoRepository` + `TodoRepository`). Methods: `GetAllOrderedAsync, GetByIdAsync, AddAsync, Update, Remove, GetMaxSortOrderAsync, SaveChangesAsync`. Ordering `SortOrder ASC, Id ASC` lives here.
+- `Services/`: business rules (`ITodoService` + `TodoService`, entities in/out). Owns `SortOrder=max+1`, `UtcNow` timestamps, `null->""` mapping, single `SaveChangesAsync` per operation.
+- `Adapters/`: static `TodoMapper` (no DI, no AutoMapper). `ToResponseDto`, `ToResponseDtoList`, `ToEntity`, `ApplyUpdate`.
+- `Controllers/`: thin, injects `ITodoService` only, maps to `TodoResponseDto` before returning. Returns `TodoResponseDto` (not EF entity) to freeze HTTP shape for T04+frontend.
+- `Program.cs`: `AddScoped<ITodoRepository, TodoRepository>` + `AddScoped<ITodoService, TodoService>` (Scoped to match DbContext).

@@ -1,5 +1,10 @@
 # T03 - Todos CRUD API (REST without realtime)
 
+> Note (T03.1): this task is kept as historical reference for the initial
+> direct-DbContext implementation. T03.1 refactors it into
+> Service + Repository + static Adapters with `TodoResponseDto`,
+> without changing routes/status codes/JSON shape. Implement T03.1 next.
+
 ## Goal
 CRUD endpoints + reorder. No SignalR yet (added in T04).
 
@@ -29,4 +34,4 @@ Invoke-RestMethod -Method Post -Uri http://localhost:5000/api/todos -ContentType
 ```
 
 ## Next
-T04-signalr-hub.
+T03.1-service-repository-adapters (then T04-signalr-hub).

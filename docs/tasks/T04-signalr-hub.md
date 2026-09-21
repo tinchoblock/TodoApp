@@ -1,12 +1,16 @@
 # T04 - SignalR hub (broadcast to other instances)
 
+> Prerequisite: T03.1. `TodosController` is thin (injects `ITodoService` only)
+> and returns `TodoResponseDto` via static `TodoMapper`.
+> Inject `IHubContext<TodoHub>` alongside `ITodoService` and broadcast the DTO.
+
 ## Goal
 Notify other open instances when one modifies the list.
 
 ## Steps
 1. Create `Hubs/TodoHub.cs`: `public class TodoHub : Hub { }` (no client->server methods in v1, only server->clients).
 2. `Program.cs`: `builder.Services.AddSignalR();` + `app.MapHub<TodoHub>("/hubs/todo");`
-3. Inject `IHubContext<TodoHub>` into `TodosController`. After each successful mutation:
+3. Inject `IHubContext<TodoHub>` into `TodosController` (alongside `ITodoService` from T03.1). After each successful mutation, map result with `TodoMapper.ToResponseDto` and broadcast the DTO:
    - POST -> `await _hub.Clients.Others.SendAsync("TodoChanged", new { type="created", todo })`
    - PUT {id} -> `type="updated"` with todo
    - DELETE -> `type="deleted"` with `{id}`
