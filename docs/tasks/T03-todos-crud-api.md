@@ -15,11 +15,11 @@ DTOs: `CreateTodoDto {string? Description}`, `UpdateTodoDto {string? Description
 JSON camelCase by default in ASP.NET Core.
 
 ## Acceptance criteria
-- [ ] GET returns ordered by SortOrder.
-- [ ] POST new item goes last (max+1).
-- [ ] PUT updates text (even empty) and state.
-- [ ] Reorder persists.
-- [ ] DELETE 204.
+- [x] GET returns ordered by SortOrder.
+- [x] POST new item goes last (max+1).
+- [x] PUT updates text (even empty) and state.
+- [x] Reorder persists.
+- [x] DELETE 204.
 
 ## Validate (PowerShell)
 ```
