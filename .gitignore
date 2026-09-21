@@ -1,0 +1,123 @@
+# ============================================================
+# TodoApp - root .gitignore (.NET + React/Vite + SQLite)
+# T10 requirement: bin/, obj/, *.db, *.db-*, node_modules/,
+# dist/, .vite/, frontend/todo-web/dist/
+# ============================================================
+
+# ---------- .NET / C# / ASP.NET Core ----------
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+[Ll]og/
+publish/
+TestResults/
+TestResult.xml
+*.dll
+*.exe
+*.pdb
+*.mdb
+*.cache
+*.ilk
+*.meta
+*.obj
+*.iobj
+*.ipdb
+*.nupkg
+*.snupkg
+*.user
+*.userosscache
+*.sln.docstates
+project.lock.json
+project.fragment.lock.json
+artifacts/
+!**/[Pp]ackages/build/
+*.nuget.props
+*.nuget.targets
+.dotnet/
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.suo
+*.user
+*.userprefs
+*.usertasks
+*.pidb
+*.booproj
+*.svd
+*.pdb
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Roslyn / ReSharper
+_ReSharper*/
+*.[Rr]e[Ss]harper
+*.DotSettings.user
+
+# ---------- SQLite / EF Core local databases ----------
+# Local dev database must never be committed
+*.db
+*.db-shm
+*.db-wal
+*.db-journal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+# Keep this exception documented: if a seed/sample db is ever needed,
+# force-add it with `git add -f path/to/file.db`
+!**/seed/*.db
+
+# ---------- Node / React / Vite / TypeScript ----------
+node_modules/
+.pnp
+.pnp.js
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+dist-ssr/
+build/
+.vite/
+.parcel-cache/
+.next/
+.nuxt/
+.cache/
+coverage/
+*.local
+frontend/todo-web/dist/
+frontend/todo-web/node_modules/
+
+# Vite / TS build info
+*.tsbuildinfo
+vite.config.*.timestamp*
+
+# ---------- OS ----------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ---------- Logs / temp / env ----------
+logs/
+*.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.env
+.env.*
+!.env.example
