@@ -15,9 +15,9 @@ Create `frontend/todo-web` running on 5173 and talking to API on 5000.
 6. `npm run dev -- --port 5173`.
 
 ## Acceptance criteria
-- [ ] `npm run dev` opens on 5173 without TS errors.
-- [ ] Performs GET to 5000 (CORS ok, empty list or with data).
-- [ ] `@microsoft/signalr` installed (actually used in T07).
+- [x] `npm run dev` opens on 5173 without TS errors. (Done 2026-09-22: `npx tsc -b` + `npm run build` clean, `vite --port 5173` 200.)
+- [x] Performs GET to 5000 (CORS ok, empty list or with data). (Done 2026-09-22: `GET /api/todos` 200 empty `[]`, OPTIONS preflight 204 with `Access-Control-Allow-Origin: http://localhost:5173`.)
+- [x] `@microsoft/signalr` installed (actually used in T07). (Done 2026-09-22: `@microsoft/signalr@^10.0.11` in `frontend/todo-web/package.json`.)
 
 ## Next
 T06-crud-ui.

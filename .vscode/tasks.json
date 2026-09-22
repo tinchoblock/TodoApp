@@ -1,0 +1,35 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "build TodoApi",
+            "type": "process",
+            "command": "dotnet",
+            "args": [
+                "build",
+                "${workspaceFolder}/backend/TodoApi/TodoApi.csproj"
+            ],
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "start todo-web",
+            "type": "shell",
+            "command": "npm run dev -- --host localhost --port 5173",
+            "options": {
+                "cwd": "${workspaceFolder}/frontend/todo-web"
+            },
+            "isBackground": true,
+            "problemMatcher": {
+                "owner": "vite",
+                "pattern": {
+                    "regexp": ".*"
+                },
+                "background": {
+                    "activeOnStart": true,
+                    "beginsPattern": ".*",
+                    "endsPattern": "http://localhost:5173/"
+                }
+            }
+        }
+    ]
+}
