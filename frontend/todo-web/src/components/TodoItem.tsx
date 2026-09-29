@@ -3,12 +3,18 @@ import type { Todo } from '../api/todosApi';
 
 interface TodoItemProps {
   todo: Todo;
+  draggable: boolean;
+  isDragOver: boolean;
   onToggle: () => Promise<void> | void;
   onSave: (text: string) => Promise<void> | void;
   onDelete: () => Promise<void> | void;
+  onDragStart: (e: React.DragEvent) => void;
+  onDragOverItem: (e: React.DragEvent) => void;
+  onDropOnItem: (e: React.DragEvent) => void;
+  onDragEnd: () => void;
 }
 
-function TodoItem({ todo, onToggle, onSave, onDelete }: TodoItemProps) {
+function TodoItem({ todo, draggable, isDragOver, onToggle, onSave, onDelete, onDragStart, onDragOverItem, onDropOnItem, onDragEnd }: TodoItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(todo.description);
   const committedRef = useRef(false);
@@ -70,7 +76,14 @@ function TodoItem({ todo, onToggle, onSave, onDelete }: TodoItemProps) {
   }
 
   return (
-    <li className="todo-item">
+    <li
+      className={isDragOver ? 'todo-item drag-over' : 'todo-item'}
+      draggable={draggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOverItem}
+      onDrop={onDropOnItem}
+      onDragEnd={onDragEnd}
+    >
       <input
         type="checkbox"
         checked={todo.isCompleted}

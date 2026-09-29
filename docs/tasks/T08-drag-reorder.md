@@ -11,9 +11,9 @@ Manual draggable order, persisted and synced.
 5. Simple recalc: `ordered.map((t,i)=>({id:t.id, sortOrder:i}))`. No complex gaps in v1.
 
 ## Acceptance criteria
-- [ ] Dragging changes visual order.
-- [ ] Order persists after reload.
-- [ ] Other tab sees new order without reload.
+- [x] Dragging changes visual order.
+- [x] Order persists after reload.
+- [x] Other tab sees new order without reload.
 
 ## Validate
 Drag in A, verify B and reload.

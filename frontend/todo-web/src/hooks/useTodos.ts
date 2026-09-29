@@ -3,6 +3,7 @@ import {
   createTodo,
   deleteTodo,
   fetchTodos,
+  reorderTodos,
   updateTodo,
   type Todo,
 } from '../api/todosApi';
@@ -239,5 +240,33 @@ export function useTodos() {
     }
   }
 
-  return { todos, loading, error, connected, add, toggle, saveText, remove };
+  // T08: manual drag reorder. Moves draggedId to targetId's position,
+  // recalcs 0..n-1 (v1 simple, no gaps), optimistic apply + PUT /reorder.
+  // On failure -> refetch authoritative state to revert.
+  async function reorder(draggedId: number, targetId: number): Promise<void> {
+    if (draggedId === targetId) {
+      return;
+    }
+    const snapshot = todos;
+    const fromIndex = snapshot.findIndex((t) => t.id === draggedId);
+    const toIndex = snapshot.findIndex((t) => t.id === targetId);
+    if (fromIndex < 0 || toIndex < 0) {
+      return;
+    }
+    const ordered = [...snapshot];
+    const [moved] = ordered.splice(fromIndex, 1);
+    ordered.splice(toIndex, 0, moved);
+    const withOrder = ordered.map((t, i) => ({ ...t, sortOrder: i }));
+    setTodos(withOrder);
+    try {
+      await reorderTodos(
+        withOrder.map((t) => ({ id: t.id, sortOrder: t.sortOrder })),
+        connectionIdRef.current,
+      );
+    } catch (err: unknown) {
+      await refetchOnFailure(err instanceof Error ? err : new Error(String(err)));
+    }
+  }
+
+  return { todos, loading, error, connected, add, toggle, saveText, remove, reorder };
 }

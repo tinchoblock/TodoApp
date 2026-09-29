@@ -3,7 +3,7 @@ import TodoList from './components/TodoList';
 import { useTodos } from './hooks/useTodos';
 
 function App() {
-  const { todos, loading, error, connected, add, toggle, saveText, remove } = useTodos();
+  const { todos, loading, error, connected, add, toggle, saveText, remove, reorder } = useTodos();
 
   const statusLabel =
     connected === 'connected'
@@ -43,6 +43,7 @@ function App() {
           onToggle={toggle}
           onSave={saveText}
           onDelete={remove}
+          onReorder={reorder}
         />
       )}
     </div>
