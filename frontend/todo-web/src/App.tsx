@@ -3,7 +3,15 @@ import TodoList from './components/TodoList';
 import { useTodos } from './hooks/useTodos';
 
 function App() {
-  const { todos, loading, error, add, toggle, saveText, remove } = useTodos();
+  const { todos, loading, error, connected, add, toggle, saveText, remove } = useTodos();
+
+  const statusLabel =
+    connected === 'connected'
+      ? 'Connected'
+      : connected === 'reconnecting'
+        ? 'Reconnecting…'
+        : 'Disconnected';
+  const statusDot = connected === 'connected' ? 'green' : connected === 'reconnecting' ? 'orange' : 'red';
 
   if (loading) {
     return (
@@ -17,6 +25,10 @@ function App() {
   return (
     <div className="todo-app">
       <h1>TodoApp</h1>
+      <p className="connection-status" role="status" aria-live="polite">
+        <span className="connection-dot" style={{ backgroundColor: statusDot }} aria-hidden="true" />
+        {statusLabel}
+      </p>
       {error && (
         <p role="alert" className="todo-error">
           {error}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   createTodo,
   deleteTodo,
@@ -6,17 +6,46 @@ import {
   updateTodo,
   type Todo,
 } from '../api/todosApi';
+import { createConnection } from '../hubs/todoHub';
 
-// T06 v1 hook (no realtime, single tab).
-// Optimistic updates with snapshot rollback; on failure restores previous state
-// and surfaces the error (T07 will add realtime reconciliation).
+export type ConnectionStatus = 'connected' | 'reconnecting' | 'disconnected';
+
+// Wire shape from contracts.md (camelCase). Note: T07 task says `items?` +
+// "no echo" but real backend sends `todos` via AllExcept — tolerate both and
+// apply echo idempotently.
+interface TodoChangedMessage {
+  type: 'created' | 'updated' | 'deleted' | 'reordered';
+  todo?: Todo;
+  id?: number;
+  todos?: Array<{ id: number; sortOrder: number }>;
+  items?: Array<{ id: number; sortOrder: number }>;
+}
+
+function sortTodos(list: Todo[]): Todo[] {
+  return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
+}
+
+// T07 v2 hook: T06 optimistic CRUD + SignalR realtime apply.
 export function useTodos() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [connected, setConnected] = useState<ConnectionStatus>('disconnected');
+  const connectionIdRef = useRef<string | null>(null);
+
+  const reconcile = useCallback(async () => {
+    try {
+      const data = await fetchTodos();
+      setTodos(data);
+    } catch {
+      // Keep existing state if reconciliation fetch fails.
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    const connection = createConnection();
+
     fetchTodos()
       .then((data) => {
         if (!cancelled) {
@@ -33,10 +62,93 @@ export function useTodos() {
           setLoading(false);
         }
       });
+
+    connection.on('TodoChanged', (msg: TodoChangedMessage) => {
+      if (cancelled || !msg || typeof msg.type !== 'string') {
+        return;
+      }
+      if (msg.type === 'created' && msg.todo) {
+        const incoming = msg.todo;
+        setTodos((prev) =>
+          prev.some((t) => t.id === incoming.id)
+            ? prev.map((t) => (t.id === incoming.id ? incoming : t))
+            : sortTodos([...prev, incoming]),
+        );
+      } else if (msg.type === 'updated' && msg.todo) {
+        const incoming = msg.todo;
+        setTodos((prev) => {
+          if (!prev.some((t) => t.id === incoming.id)) {
+            void reconcile();
+            return prev;
+          }
+          return prev.map((t) => (t.id === incoming.id ? incoming : t));
+        });
+      } else if (msg.type === 'deleted' && typeof msg.id === 'number') {
+        const deletedId = msg.id;
+        setTodos((prev) => {
+          if (!prev.some((t) => t.id === deletedId)) {
+            void reconcile();
+            return prev;
+          }
+          return prev.filter((t) => t.id !== deletedId);
+        });
+      } else if (msg.type === 'reordered') {
+        const order = msg.todos ?? msg.items;
+        if (!Array.isArray(order)) {
+          void reconcile();
+        } else {
+          const orderById = new Map(order.map((o) => [o.id, o.sortOrder]));
+          setTodos((prev) =>
+            sortTodos(
+              prev.map((t) =>
+                orderById.has(t.id) ? { ...t, sortOrder: orderById.get(t.id)! } : t,
+              ),
+            ),
+          );
+        }
+      } else {
+        void reconcile();
+      }
+    });
+
+    connection.onreconnecting(() => {
+      if (!cancelled) {
+        setConnected('reconnecting');
+      }
+    });
+    connection.onreconnected(() => {
+      if (!cancelled) {
+        connectionIdRef.current = connection.connectionId ?? null;
+        setConnected('connected');
+        void reconcile();
+      }
+    });
+    connection.onclose(() => {
+      if (!cancelled) {
+        setConnected('disconnected');
+      }
+    });
+
+    connection
+      .start()
+      .then(() => {
+        if (!cancelled) {
+          connectionIdRef.current = connection.connectionId ?? null;
+          setConnected('connected');
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setConnected('disconnected');
+          setError(err instanceof Error ? err.message : String(err));
+        }
+      });
+
     return () => {
       cancelled = true;
+      void connection.stop();
     };
-  }, []);
+  }, [reconcile]);
 
   async function refetchOnFailure(message: Error): Promise<void> {
     setError(message.message);
@@ -53,8 +165,12 @@ export function useTodos() {
   // Empty text allowed — no validation.
   async function add(text: string): Promise<void> {
     try {
-      const created = await createTodo(text);
-      setTodos((prev) => [...prev, created]);
+      const created = await createTodo(text, connectionIdRef.current);
+      setTodos((prev) =>
+        prev.some((t) => t.id === created.id)
+          ? prev.map((t) => (t.id === created.id ? created : t))
+          : [...prev, created],
+      );
     } catch (err: unknown) {
       await refetchOnFailure(err instanceof Error ? err : new Error(String(err)));
     }
@@ -71,10 +187,14 @@ export function useTodos() {
       prev.map((t) => (t.id === id ? { ...t, isCompleted: nextCompleted } : t)),
     );
     try {
-      const updated = await updateTodo(id, {
-        description: target.description,
-        isCompleted: nextCompleted,
-      });
+      const updated = await updateTodo(
+        id,
+        {
+          description: target.description,
+          isCompleted: nextCompleted,
+        },
+        connectionIdRef.current,
+      );
       setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
     } catch (err: unknown) {
       setTodos(snapshot);
@@ -93,10 +213,14 @@ export function useTodos() {
       prev.map((t) => (t.id === id ? { ...t, description: text } : t)),
     );
     try {
-      const updated = await updateTodo(id, {
-        description: text,
-        isCompleted: target.isCompleted,
-      });
+      const updated = await updateTodo(
+        id,
+        {
+          description: text,
+          isCompleted: target.isCompleted,
+        },
+        connectionIdRef.current,
+      );
       setTodos((prev) => prev.map((t) => (t.id === id ? updated : t)));
     } catch (err: unknown) {
       setTodos(snapshot);
@@ -108,12 +232,12 @@ export function useTodos() {
     const snapshot = todos;
     setTodos((prev) => prev.filter((t) => t.id !== id));
     try {
-      await deleteTodo(id);
+      await deleteTodo(id, connectionIdRef.current);
     } catch (err: unknown) {
       setTodos(snapshot);
       setError(err instanceof Error ? err.message : String(err));
     }
   }
 
-  return { todos, loading, error, add, toggle, saveText, remove };
+  return { todos, loading, error, connected, add, toggle, saveText, remove };
 }

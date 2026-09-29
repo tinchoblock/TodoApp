@@ -19,6 +19,14 @@ export interface ReorderItem {
 
 export const API_URL = 'http://localhost:5000/api/todos';
 
+export function withConnectionId(url: string, connectionId: string | null): string {
+  if (!connectionId) {
+    return url;
+  }
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}connectionId=${encodeURIComponent(connectionId)}`;
+}
+
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const text = await res.text();
@@ -35,8 +43,8 @@ export async function fetchTodos(): Promise<Todo[]> {
   return handleResponse<Todo[]>(res);
 }
 
-export async function createTodo(description: string): Promise<Todo> {
-  const res = await fetch(API_URL, {
+export async function createTodo(description: string, connectionId?: string | null): Promise<Todo> {
+  const res = await fetch(withConnectionId(API_URL, connectionId ?? null), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ description }),
@@ -44,8 +52,8 @@ export async function createTodo(description: string): Promise<Todo> {
   return handleResponse<Todo>(res);
 }
 
-export async function updateTodo(id: number, payload: UpdateTodoPayload): Promise<Todo> {
-  const res = await fetch(`${API_URL}/${id}`, {
+export async function updateTodo(id: number, payload: UpdateTodoPayload, connectionId?: string | null): Promise<Todo> {
+  const res = await fetch(withConnectionId(`${API_URL}/${id}`, connectionId ?? null), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -53,8 +61,8 @@ export async function updateTodo(id: number, payload: UpdateTodoPayload): Promis
   return handleResponse<Todo>(res);
 }
 
-export async function reorderTodos(items: ReorderItem[]): Promise<void> {
-  const res = await fetch(`${API_URL}/reorder`, {
+export async function reorderTodos(items: ReorderItem[], connectionId?: string | null): Promise<void> {
+  const res = await fetch(withConnectionId(`${API_URL}/reorder`, connectionId ?? null), {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(items),
@@ -62,7 +70,7 @@ export async function reorderTodos(items: ReorderItem[]): Promise<void> {
   return handleResponse<void>(res);
 }
 
-export async function deleteTodo(id: number): Promise<void> {
-  const res = await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+export async function deleteTodo(id: number, connectionId?: string | null): Promise<void> {
+  const res = await fetch(withConnectionId(`${API_URL}/${id}`, connectionId ?? null), { method: 'DELETE' });
   return handleResponse<void>(res);
 }

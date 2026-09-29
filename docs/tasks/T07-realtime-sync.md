@@ -15,10 +15,10 @@ When one instance edits, the other updates automatically via SignalR.
 4. Caller does NOT expect echo (backend uses Others), so its optimistic update is the source.
 
 ## Acceptance criteria
-- [ ] 2 tabs on 5173: create in A shows in B without reload.
-- [ ] Edit/toggle/delete in A reflects in B.
-- [ ] Connection indicator visible.
-- [ ] Automatic reconnect.
+- [x] 2 tabs on 5173: create in A shows in B without reload.
+- [x] Edit/toggle/delete in A reflects in B.
+- [x] Connection indicator visible.
+- [x] Automatic reconnect.
 
 ## Validate
 Open 2 tabs, test cross create/edit/toggle/delete.
