@@ -26,12 +26,25 @@ function sortTodos(list: Todo[]): Todo[] {
   return [...list].sort((a, b) => a.sortOrder - b.sortOrder || a.id - b.id);
 }
 
+// T08.1: exponential backoff for cold-start retries (1s,2s,4s,... capped at 10s).
+function retryDelay(attempt: number): number {
+  return Math.min(1000 * 2 ** attempt, 10000);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
 // T07 v2 hook: T06 optimistic CRUD + SignalR realtime apply.
+// T08.1: initial REST load + hub start retry with backoff until backend is up.
 export function useTodos() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [connected, setConnected] = useState<ConnectionStatus>('disconnected');
+  const [retrySeq, setRetrySeq] = useState(0);
   const connectionIdRef = useRef<string | null>(null);
 
   const reconcile = useCallback(async () => {
@@ -43,29 +56,50 @@ export function useTodos() {
     }
   }, []);
 
+  const retry = useCallback(() => {
+    setError(null);
+    setConnected('reconnecting');
+    setRetrySeq((n) => n + 1);
+  }, []);
+
   useEffect(() => {
-    let cancelled = false;
+    const signal = { cancelled: false };
     const connection = createConnection();
 
-    fetchTodos()
-      .then((data) => {
-        if (!cancelled) {
+    // T08.1: keep retrying initial load until the backend is up.
+    // First attempt fails fast (loading=false); later attempts run in
+    // background with 'reconnecting' status + last error shown.
+    async function loadWithRetry(): Promise<void> {
+      let attempt = 0;
+      for (;;) {
+        try {
+          const data = await fetchTodos();
+          if (signal.cancelled) {
+            return;
+          }
           setTodos(data);
-        }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
+          setError(null);
+          return;
+        } catch (err: unknown) {
+          if (signal.cancelled) {
+            return;
+          }
           setError(err instanceof Error ? err.message : String(err));
+          setConnected('reconnecting');
+          if (attempt === 0) {
+            setLoading(false);
+          }
+          await sleep(retryDelay(attempt));
+          if (signal.cancelled) {
+            return;
+          }
+          attempt += 1;
         }
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      });
+      }
+    }
 
     connection.on('TodoChanged', (msg: TodoChangedMessage) => {
-      if (cancelled || !msg || typeof msg.type !== 'string') {
+      if (signal.cancelled || !msg || typeof msg.type !== 'string') {
         return;
       }
       if (msg.type === 'created' && msg.todo) {
@@ -113,43 +147,72 @@ export function useTodos() {
     });
 
     connection.onreconnecting(() => {
-      if (!cancelled) {
+      if (!signal.cancelled) {
         setConnected('reconnecting');
       }
     });
     connection.onreconnected(() => {
-      if (!cancelled) {
+      if (!signal.cancelled) {
         connectionIdRef.current = connection.connectionId ?? null;
         setConnected('connected');
+        setError(null);
         void reconcile();
       }
     });
+    // T08.1: withAutomaticReconnect gives up after its attempts and calls
+    // onclose. Re-enter the start loop so a restarted backend still recovers.
     connection.onclose(() => {
-      if (!cancelled) {
-        setConnected('disconnected');
+      if (!signal.cancelled) {
+        void startHubWithRetry();
       }
     });
 
-    connection
-      .start()
-      .then(() => {
-        if (!cancelled) {
+    // T08.1: initial start must also retry — withAutomaticReconnect only
+    // helps after a successful first start.
+    async function startHubWithRetry(): Promise<void> {
+      let attempt = 0;
+      for (;;) {
+        try {
+          await connection.start();
+          if (signal.cancelled) {
+            return;
+          }
           connectionIdRef.current = connection.connectionId ?? null;
           setConnected('connected');
+          setError(null);
+          void reconcile();
+          return;
+        } catch (err: unknown) {
+          if (signal.cancelled) {
+            return;
+          }
+          // Don't clobber the REST error; only show hub error if REST is fine.
+          setError((prev) =>
+            prev ?? (err instanceof Error ? err.message : String(err)),
+          );
+          setConnected('reconnecting');
+          await sleep(retryDelay(attempt));
+          if (signal.cancelled) {
+            return;
+          }
+          attempt += 1;
         }
-      })
-      .catch((err: unknown) => {
-        if (!cancelled) {
-          setConnected('disconnected');
-          setError(err instanceof Error ? err.message : String(err));
-        }
-      });
+      }
+    }
+
+    setLoading(true);
+    void loadWithRetry().finally(() => {
+      if (!signal.cancelled) {
+        setLoading(false);
+      }
+    });
+    void startHubWithRetry();
 
     return () => {
-      cancelled = true;
+      signal.cancelled = true;
       void connection.stop();
     };
-  }, [reconcile]);
+  }, [reconcile, retrySeq]);
 
   async function refetchOnFailure(message: Error): Promise<void> {
     setError(message.message);
@@ -268,5 +331,5 @@ export function useTodos() {
     }
   }
 
-  return { todos, loading, error, connected, add, toggle, saveText, remove, reorder };
+  return { todos, loading, error, connected, retry, add, toggle, saveText, remove, reorder };
 }

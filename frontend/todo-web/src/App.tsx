@@ -3,14 +3,16 @@ import TodoList from './components/TodoList';
 import { useTodos } from './hooks/useTodos';
 
 function App() {
-  const { todos, loading, error, connected, add, toggle, saveText, remove, reorder } = useTodos();
+  const { todos, loading, error, connected, retry, add, toggle, saveText, remove, reorder } = useTodos();
 
   const statusLabel =
     connected === 'connected'
       ? 'Connected'
-      : connected === 'reconnecting'
-        ? 'Reconnecting…'
-        : 'Disconnected';
+      : loading
+        ? 'Connecting…'
+        : connected === 'reconnecting'
+          ? 'Reconnecting… (retrying)'
+          : 'Disconnected';
   const statusDot = connected === 'connected' ? 'green' : connected === 'reconnecting' ? 'orange' : 'red';
 
   if (loading) {
@@ -31,7 +33,12 @@ function App() {
       </p>
       {error && (
         <p role="alert" className="todo-error">
-          {error}
+          {error}{' '}
+          {connected !== 'connected' && (
+            <button type="button" onClick={retry}>
+              Retry now
+            </button>
+          )}
         </p>
       )}
       <AddTodo onAdd={add} />
