@@ -60,6 +60,7 @@ _ReSharper*/
 # ---------- SQLite / EF Core local databases ----------
 # Local dev database must never be committed
 *.db
+*.db-*
 *.db-shm
 *.db-wal
 *.db-journal
